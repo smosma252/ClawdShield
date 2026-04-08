@@ -1,0 +1,15 @@
+node_modules
+.pnpm-store
+.next
+dist
+.env
+.env.local
+.venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.pyc
+.DS_Store
+coverage
+htmlcov
