@@ -2,7 +2,7 @@
 > A sandboxed agent runtime + adversarial evaluation platform that simulates real-world workflows (files, browser, email) and measures unsafe behavior under prompt injection and tool misuse.
 > Red-teaming framework for LLM agent security — sandbox execution, adversarial attack corpus, and policy enforcement at tool boundaries.
 
-![Python](https://img.shields.io/badge/python-3.11+-blue) ![Docker](https://img.shields.io/badge/docker-required-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+![Python](https://img.shields.io/badge/python-3.12+-blue) ![React](https://img.shields.io/badge/react-19-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
 
@@ -21,24 +21,53 @@ The goal is to move agent safety from "prompt the model to behave" to "enforce c
 
 ## Architecture
 
+This is a **pnpm monorepo** orchestrated with [Turborepo](https://turbo.build/). It contains two apps (a Python API and a React dashboard) and a shared types package.
+
 ```
-ClawdShield
-├── sandbox/
-│   ├── runner.py          # SandboxRunner — spins up/tears down Docker containers
-│   ├── tools/             # Sandboxed tool wrappers (read_file, send_email, run_shell)
-│   └── action_log.py      # ActionLog dataclass — records every tool invocation
-├── attacks/
-│   ├── scenarios/         # YAML attack scenario definitions
-│   └── scenario_library.py
-├── policy/
-│   ├── middleware.py      # PolicyMiddleware — wraps tool calls with OPA evaluation
-│   └── rules/             # OPA Rego policies (shell blocklist, path restrictions, etc.)
-├── dashboard/
-│   ├── schema.sql         # Postgres schema (runs, events tables)
-│   └── app/               # React/Next.js dashboard or Grafana config
-├── run_benchmark.py       # Runs full scenario library, writes results to Postgres
-└── agent/
-    └── base_agent.py      # Core ReAct agent built on LangGraph
+ClawdShield/
+├── apps/
+│   ├── api/                          # Python FastAPI service (uv)
+│   │   ├── app/
+│   │   │   ├── api/
+│   │   │   │   └── v1/               # REST endpoints — /runs, /scenarios, /events
+│   │   │   ├── core/
+│   │   │   │   └── agent.py          # Base ReAct agent (LangGraph)
+│   │   │   ├── db/
+│   │   │   │   └── models/           # SQLAlchemy models (Run, Event)
+│   │   │   ├── schemas/              # Pydantic request/response schemas
+│   │   │   ├── services/
+│   │   │   │   ├── sandbox/          # Docker sandbox runner + tool wrappers
+│   │   │   │   │   ├── runner.py     # SandboxRunner — spins up/tears down containers
+│   │   │   │   │   ├── tools/        # Sandboxed tool wrappers (read_file, send_email, run_shell)
+│   │   │   │   │   └── action_log.py # ActionLog — records every tool invocation
+│   │   │   │   ├── attacks/          # Attack scenario loader
+│   │   │   │   │   ├── scenarios/    # YAML attack scenario definitions
+│   │   │   │   │   └── library.py    # ScenarioLibrary — loads and indexes scenarios
+│   │   │   │   └── policy/           # OPA policy enforcement
+│   │   │   │       ├── middleware.py  # PolicyMiddleware — wraps tool calls with OPA
+│   │   │   │       └── rules/        # Rego policies (shell blocklist, path restrictions)
+│   │   │   └── main.py               # FastAPI app entry point
+│   │   ├── tests/
+│   │   └── pyproject.toml
+│   ├── frontend/                     # React 19 + Vite + Tailwind CSS v4 dashboard
+│   │   └── src/
+│   │       ├── components/           # UI components (RunTable, ScenarioCard, Charts)
+│   │       ├── pages/                # Route pages (Dashboard, Scenarios, RunDetail)
+│   │       ├── hooks/                # Data-fetching hooks
+│   │       ├── lib/                  # API client, utils
+│   │       ├── App.tsx
+│   │       └── main.tsx
+│   └── workers/                      # Background job runner
+│       └── benchmark.py              # Pulls queued runs from Redis, executes via SandboxRunner
+├── packages/
+│   └── types/                        # Shared TypeScript types (consumed by frontend)
+│       └── src/
+│           ├── run.ts                # Run, RunStatus, ToolLog
+│           ├── scenario.ts           # Scenario
+│           └── index.ts
+├── turbo.json
+├── pnpm-workspace.yaml
+└── package.json
 ```
 
 ---
@@ -79,46 +108,58 @@ unsafe_action_signatures:
 
 ### Prerequisites
 
-- Python 3.11+
+- [Node.js](https://nodejs.org/) 20+ and [pnpm](https://pnpm.io/) 10+
+- [Python](https://www.python.org/) 3.12+ and [uv](https://docs.astral.sh/uv/)
 - Docker
-- An OpenAI or Anthropic API key
-- Postgres (for dashboard)
+- An Anthropic or OpenAI API key
+- Postgres + Redis (for runs storage and job queue)
 
 ### Installation
 
 ```bash
 git clone https://github.com/yourhandle/clawdshield.git
 cd clawdshield
-pip install -r requirements.txt
+
+# Install JS dependencies (frontend + types)
+pnpm install
+
+# Install Python dependencies
+cd apps/api && uv sync
 ```
 
 ### Configuration
 
 ```bash
 cp .env.example .env
-# Set OPENAI_API_KEY or ANTHROPIC_API_KEY
-# Set POSTGRES_URL if using the dashboard
+# Set ANTHROPIC_API_KEY or OPENAI_API_KEY
+# Set DATABASE_URL (Postgres)
+# Set REDIS_URL
+```
+
+### Run in development
+
+```bash
+# Start everything (API + frontend) in parallel via Turborepo
+pnpm dev
+
+# Or individually:
+pnpm dev:api        # FastAPI on http://localhost:8000
+pnpm dev:frontend   # Vite on http://localhost:5173
 ```
 
 ### Run a single scenario
 
 ```bash
-python run_scenario.py --scenario attacks/scenarios/file-inject-001.yaml --model gpt-4o
+cd apps/api
+uv run python -m app.services.attacks.run --scenario app/services/attacks/scenarios/file-inject-001.yaml --model claude-sonnet-4-6
 ```
 
 ### Run the full benchmark
 
 ```bash
-python run_benchmark.py --model gpt-4o
+cd apps/api
+uv run python -m workers.benchmark --model claude-sonnet-4-6
 # Results are written to Postgres and viewable in the dashboard
-```
-
-### Start the dashboard
-
-```bash
-cd dashboard/app
-npm install && npm run dev
-# Open http://localhost:3000
 ```
 
 ---
@@ -172,31 +213,48 @@ deny {
 
 ## Dashboard
 
-The dashboard compares attack outcomes across models and scenario types.
+The React dashboard (Vite + Tailwind CSS v4) fetches from the FastAPI backend and compares attack outcomes across models and scenario types.
 
 Key panels:
 - **Attack success rate** by scenario category (file, email, web, escalation)
 - **Policy block rate** by tool
-- **Model comparison** — run the same scenario against GPT-4o, Claude Sonnet, and Mistral and see which holds up
+- **Model comparison** — run the same scenario against different models and see which holds up
 
 Postgres schema:
 
 ```sql
-runs    (scenario_id, model, timestamp, total_actions, policy_violations, unsafe_actions_completed)
-events  (run_id, timestamp, tool, args, result, flagged, policy_rule)
+runs    (id, scenario_id, model, status, score, created_at, updated_at)
+events  (id, run_id, timestamp, tool, args, result, flagged, policy_rule)
 ```
+
+The `packages/types` package keeps the TypeScript types for `Run`, `Scenario`, and `ToolLog` in sync with the API — the frontend imports from `@ClawdShield/types` rather than duplicating type definitions.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| API | Python 3.12, FastAPI, SQLAlchemy, Alembic, Pydantic |
+| Agent | LangGraph (ReAct loop), Anthropic / OpenAI SDK |
+| Sandbox | Docker SDK for Python |
+| Policy | Open Policy Agent (OPA), Rego |
+| Queue | Redis |
+| Dashboard | React 19, Vite, Tailwind CSS v4, TypeScript |
+| Monorepo | pnpm workspaces, Turborepo |
 
 ---
 
 ## Roadmap
 
-- [x] Phase 1 — Core ReAct agent with LangGraph
-- [x] Phase 2 — Docker sandbox executor
-- [x] Phase 3 — Attack scenario library (YAML)
-- [ ] Phase 4 — OPA policy middleware
-- [ ] Phase 5 — Red-team dashboard
-
-See [ROADMAP.md](./ROADMAP.md) for the full breakdown.
+- [x] Phase 1 — Monorepo setup (pnpm + Turborepo, shared types)
+- [x] Phase 2 — FastAPI scaffold with Postgres + Redis dependencies
+- [x] Phase 3 — Base agent stub (`app/core/agent.py`)
+- [ ] Phase 4 — Docker sandbox executor (`services/sandbox/`)
+- [ ] Phase 5 — Attack scenario library, YAML format (`services/attacks/`)
+- [ ] Phase 6 — OPA policy middleware (`services/policy/`)
+- [ ] Phase 7 — Benchmark worker (`apps/workers/`)
+- [ ] Phase 8 — Red-team dashboard (React UI)
 
 ---
 
@@ -206,6 +264,7 @@ See [ROADMAP.md](./ROADMAP.md) for the full breakdown.
 - Greshake et al. (2023) — *Not What You've Signed Up For: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection* — [arXiv](https://arxiv.org/abs/2302.12173)
 - [LangGraph docs](https://python.langchain.com/docs/langgraph)
 - [Open Policy Agent](https://www.openpolicyagent.org/)
+- [Turborepo docs](https://turbo.build/repo/docs)
 
 ---
 
