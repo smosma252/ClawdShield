@@ -7,9 +7,6 @@ from langchain.messages import AIMessage, HumanMessage, ToolMessage
 
 router = APIRouter(prefix='/runs', tags=['runs'])
 
-def get_client() -> OpenAI:
-    return OpenAI(api_key=settings.open_api_key)
-
 
 @router.get("/")
 async def get_runs():
