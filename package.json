@@ -7,7 +7,9 @@
     "dev": "turbo run dev --parallel",
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:api": "cd apps/api && uv run uvicorn app.main:app --reload",
-    "types:build": "pnpm --filter @ClawdShield/types build"
+    "types:build": "pnpm --filter @ClawdShield/types build",
+    "db:up": "docker compose --env-file apps/api/.env -f .docker/docker-compose.yaml up -d",
+    "db:down": "docker compose --env-file apps/api/.env -f .docker/docker-compose.yaml down"
   },
   "devDependencies": {
     "turbo": "^2.5.0",
