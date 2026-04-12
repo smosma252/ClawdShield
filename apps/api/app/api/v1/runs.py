@@ -11,8 +11,25 @@ def get_client() -> OpenAI:
     return OpenAI(api_key=settings.open_api_key)
 
 
-@router.post("/execute")
-async def execute(task):
+@router.get("/")
+async def get_runs():
+    ''' 
+    Get all run possibly Success/Failed/Running Status.
+    list all runs (for the dashboard run history table) 
+
+    '''
+    pass
+
+@router.get("/{id}")
+async def get_run(id: int):
+    '''Get Run obj based on id, get a single run's result + status'''
+    pass
+
+
+@router.post("/{id}/stream")
+async def get_run_stream(id):
+    task = get_job_info(id) # return agent, model, task info
+
     agent = get_agent()
 
     for chunk in agent.stream({
