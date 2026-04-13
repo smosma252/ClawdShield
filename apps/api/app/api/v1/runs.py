@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends
 import json
-from langchain.messages import AIMessage, HumanMessage, ToolMessage
-
 from ...schemas.run import CreateRunRequest
 from ...core.tools import *
 from ...core.agent import get_agent
 from ...db.models.run import Run, RunStatus
+from ...db.models.scenario import Scenario, ScenarioCategory
 from ...db.models.event import Event, EventStatus
 from ...db.client import get_session, Session
+from sqlmodel import select
 
 
 router = APIRouter(prefix='/runs', tags=['runs'])
@@ -49,10 +49,12 @@ async def create_run(body: CreateRunRequest, session = Depends(get_session)) -> 
 async def get_run_stream(id, session: Session = Depends(get_session)):
     run = session.get(Run, id) # return agent, model, task info
     agent = get_agent(run.model)
-
     try:
+        scenario = session.exec(select(Scenario).where(
+            Scenario.scenario_key == run.scenario_id)).first()
+
         for chunk in agent.stream({
-            "messages": [{"role": "user", "content": run.task }]
+            "messages": [{"role": "user", "content": scenario.user_task }]
             }, stream_mode="updates"):
 
             if 'tools' in chunk:
