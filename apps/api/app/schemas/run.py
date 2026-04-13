@@ -12,6 +12,7 @@ class JobStatus(Enum):
 class CreateRunRequest(BaseModel):
     scenario_id : str
     model: str  = "gpt-4o"
+    task: str
 
 class RunResponse(BaseModel):
     id: str

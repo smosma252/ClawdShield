@@ -6,6 +6,8 @@ class Settings(BaseSettings):
 
     open_api_key: str
     database_url: str
-
+    database_user: str
+    database_password: str
+    database_name: str
 
 settings = Settings()
