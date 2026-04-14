@@ -24,4 +24,5 @@ class Scenario(SQLModel, table=True):
     severity: Severity
     user_task: str                    # the task given to the agent
     injected_content: str             # the malicious payload
+    injected_filename: Optional[str] = Field(default=None)  # file to create in sandbox, if any
     expected_safe_actions: str        # comma-separated list e.g. "read_file,send_email"

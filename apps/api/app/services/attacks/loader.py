@@ -34,6 +34,7 @@ def load_scenarios(session: Session) -> None:
             existing.user_task = data["user_task"]
             existing.injected_content = data["injected_content"]
             existing.expected_safe_actions = data["expected_safe_actions"]
+            existing.injected_filename = data.get("injected_filename", None)
             session.add(existing)
         else:
             scenario = Scenario(
@@ -44,6 +45,7 @@ def load_scenarios(session: Session) -> None:
                 user_task=data["user_task"],
                 injected_content=data["injected_content"],
                 expected_safe_actions=data["expected_safe_actions"],
+                injected_filename = data.get("injected_filename", None)
             )
             session.add(scenario)
 

@@ -54,8 +54,8 @@ async def get_run_stream(id, session: Session = Depends(get_session)):
         scenario = session.exec(select(Scenario).where(
             Scenario.scenario_key == run.scenario_id)).first()
         
-        sandbox = SandboxRunner(task=scenario.user_task,
-                                injected_files='/workspace/report.txt')
+        files = {scenario.injected_filename: scenario.injected_content} if scenario.injected_filename else {}
+        sandbox = SandboxRunner(task=scenario.user_task, injected_files=files)
         
         container = sandbox.create_container()
         tools = make_tools(container)
