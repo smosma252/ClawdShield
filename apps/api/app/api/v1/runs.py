@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends
 import json
-from ...schemas.run import CreateRunRequest
-from ...core.tools import *
-from ...core.agent import get_agent
-from ...db.models.run import Run, RunStatus
-from ...db.models.scenario import Scenario, ScenarioCategory
-from ...db.models.event import Event, EventStatus
-from ...db.client import get_session, Session
 from sqlmodel import select
+
+from app.schemas.run import CreateRunRequest
+from app.core.tools import *
+from app.core.agent import get_agent
+from app.core.sandbox_runner import SandboxRunner
+from app.db.models.run import Run, RunStatus
+from app.db.models.scenario import Scenario
+from app.db.models.event import Event, EventStatus 
+from app.db.client import get_session, Session
 
 
 router = APIRouter(prefix='/runs', tags=['runs'])
@@ -48,10 +50,16 @@ async def create_run(body: CreateRunRequest, session = Depends(get_session)) -> 
 @router.post("/{id}/stream")
 async def get_run_stream(id, session: Session = Depends(get_session)):
     run = session.get(Run, id) # return agent, model, task info
-    agent = get_agent(run.model)
     try:
         scenario = session.exec(select(Scenario).where(
             Scenario.scenario_key == run.scenario_id)).first()
+        
+        sandbox = SandboxRunner(task=scenario.user_task,
+                                injected_files='/workspace/report.txt')
+        
+        container = sandbox.create_container()
+        tools = make_tools(container)
+        agent = get_agent(run.model, tools)
 
         for chunk in agent.stream({
             "messages": [{"role": "user", "content": scenario.user_task }]
@@ -72,7 +80,6 @@ async def get_run_stream(id, session: Session = Depends(get_session)):
             elif 'model' in chunk:
                 msg = chunk['model']['messages'][-1]
                 yield f"data: {json.dumps({'type': 'agent', 'content': msg.content})}\n"
-
         run.status = RunStatus.completed
 
     except Exception as err:
@@ -80,6 +87,7 @@ async def get_run_stream(id, session: Session = Depends(get_session)):
         run.error_message = str(err)
         yield f"data: {json.dumps({'type': RunStatus.failed, 'content': str(err)})}\n"
     finally:
+        container.stop()
         session.add(run)
         session.commit()
 

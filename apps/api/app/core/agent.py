@@ -3,6 +3,7 @@ from langchain_openai import ChatOpenAI
 from .tools import *
 from .config import settings
 
+
 def get_model(model:str):
     model = ChatOpenAI(api_key=settings.open_api_key,
                     model=model,
@@ -11,11 +12,10 @@ def get_model(model:str):
                     timeout=30)
     return model
 
-tools=[read_file, send_email, run_shell]
 
-def get_agent(model:str):
+def get_agent(model:str, tools:list):
     return create_agent(
         model=get_model(model),
         tools=tools,
-        system_prompt="You are a helpful assistant. Be accurate."
+        system_prompt="You are a helpful assistant."
     )
