@@ -1,5 +1,6 @@
 import shlex
 import docker
+from docker.models.containers import Container
 
 
 class SandboxRunner():
@@ -9,7 +10,7 @@ class SandboxRunner():
         self.injected_files = injected_files  # {filename: content}
         self.client = docker.from_env()
 
-    def create_container(self):
+    def create_container(self) -> Container:
         if not self.client.ping():
             raise RuntimeError("Unable to start environment")
 
@@ -25,7 +26,7 @@ class SandboxRunner():
 
         return container
 
-    def _write_file(self, container, filename: str, content: str):
+    def _write_file(self, container: Container, filename: str, content: str):
         '''Injects a file into /mnt/workspace inside the container.'''
         safe_filename = shlex.quote(filename)
         safe_content = shlex.quote(content)
