@@ -88,6 +88,7 @@ async def get_run_stream(id, session: Session = Depends(get_session)):
         yield f"data: {json.dumps({'type': RunStatus.failed, 'content': str(err)})}\n"
     finally:
         container.stop()
+        container.remove()
         session.add(run)
         session.commit()
 
