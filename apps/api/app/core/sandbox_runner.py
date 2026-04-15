@@ -1,5 +1,4 @@
-import io
-import tarfile
+import shlex
 import docker
 
 
@@ -28,13 +27,11 @@ class SandboxRunner():
 
     def _write_file(self, container, filename: str, content: str):
         '''Injects a file into /mnt/workspace inside the container.'''
-        encoded = content.encode('utf-8')
-        buf = io.BytesIO()
-        with tarfile.open(fileobj=buf, mode='w') as tar:
-            info = tarfile.TarInfo(name=filename)
-            info.size = len(encoded)
-            tar.addfile(info, io.BytesIO(encoded))
-        buf.seek(0)
-        ok = container.put_archive('/mnt/workspace', buf)
-        if not ok:
-            raise RuntimeError(f"Failed to inject file '{filename}' into container")
+        safe_filename = shlex.quote(filename)
+        safe_content = shlex.quote(content)
+        res = container.exec_run(
+            ['sh', '-c', f'printf %s {safe_content} > /mnt/workspace/{safe_filename}'],
+            workdir='/mnt/workspace'
+        )
+        if res.exit_code != 0:
+            raise RuntimeError(f"Failed to inject file '{filename}': {res.output.decode()}")
