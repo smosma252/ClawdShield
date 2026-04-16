@@ -14,5 +14,17 @@ services:
     volumes:
       - clawdshield_postgres_data:/var/lib/postgresql/data
 
+  pgadmin:
+    container_name: clawdshield_pgadmin
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+
 volumes:
   clawdshield_postgres_data: {}
