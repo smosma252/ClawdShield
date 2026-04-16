@@ -59,18 +59,18 @@ export function Sidebar() {
         {NAV_ITEMS.map((item) => {
           const isActive = location === item.path || location.startsWith(item.path + '/')
           return (
-            <Link key={item.path} href={item.path}>
-              <a
-                className={[
-                  'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors cursor-pointer',
-                  isActive
-                    ? 'bg-white/[0.08] text-white'
-                    : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]',
-                ].join(' ')}
-              >
-                <span className={isActive ? 'text-blue-400' : 'text-current'}>{item.icon}</span>
-                {item.label}
-              </a>
+            <Link
+              key={item.path}
+              href={item.path}
+              className={[
+                'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors cursor-pointer',
+                isActive
+                  ? 'bg-white/8 text-white'
+                  : 'text-white/50 hover:text-white/80 hover:bg-white/4',
+              ].join(' ')}
+            >
+              <span className={isActive ? 'text-blue-400' : 'text-current'}>{item.icon}</span>
+              {item.label}
             </Link>
           )
         })}

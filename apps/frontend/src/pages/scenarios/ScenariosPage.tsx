@@ -27,6 +27,7 @@ function SkeletonCard() {
 export function ScenariosPage() {
   const { scenarios, loading, error } = useScenarios()
   const [modalOpen, setModalOpen] = useState(false)
+  const scenarioMap = {'length': scenarios.length}
 
   return (
     <div className="p-8">
@@ -55,7 +56,7 @@ export function ScenariosPage() {
       {/* Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+          {Array.from(scenarioMap).map((_, i) => <SkeletonCard key={i}/>)}
         </div>
       ) : scenarios.length === 0 ? (
         <EmptyState

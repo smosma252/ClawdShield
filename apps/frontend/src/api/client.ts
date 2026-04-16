@@ -1,6 +1,6 @@
 import type { CreateRunRequest, Run, Scenario, SSEPayload } from '../types'
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? ''
+const BASE_URL = "http://localhost:8000"
 
 class ApiError extends Error {
   status: number
@@ -16,6 +16,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...init?.headers },
     ...init,
   })
+  console.log(res);
   if (!res.ok) {
     throw new ApiError(res.status, `${res.status} ${res.statusText}`)
   }
@@ -24,6 +25,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function getScenarios(): Promise<Scenario[]> {
   const data = await request<Scenario[] | null>('/api/v1/scenarios/')
+  console.log(data);
   return data ?? []
 }
 
