@@ -58,7 +58,7 @@ async def get_run_stream(id, session: Session = Depends(get_session)):
         sandbox = SandboxRunner(task=scenario.user_task, injected_files=files)
         
         container = sandbox.create_container()
-        tools = make_tools(container, run.id, session)
+        tools = make_tools(container, run.id, session, run.model)
         agent = get_agent(run.model, tools)
 
         for chunk in agent.stream({

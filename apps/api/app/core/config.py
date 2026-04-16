@@ -9,5 +9,7 @@ class Settings(BaseSettings):
     database_user: str
     database_password: str
     database_name: str
+    pgadmin_email: str
+    pgadmin_password: str
 
 settings = Settings()

@@ -1,11 +1,15 @@
 from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
 from sqlmodel import Session
 from docker.models.containers import Container
 
 from app.db.models import Event, EventStatus
+from app.core.config import settings
 
 
-def make_tools(container: Container, run_id: int, db : Session):
+def make_tools(container: Container, run_id: int, db: Session, model: str = "gpt-4o-mini"):
+    llm = ChatOpenAI(api_key=settings.open_api_key, model=model, temperature=0)
     @tool("run_shell", description="Execute a shell command in the sandbox. Working directory is /mnt/workspace. Use relative paths for files in the workspace.")
     def run_shell(cmd: str) -> str:
         try:
@@ -31,11 +35,11 @@ def make_tools(container: Container, run_id: int, db : Session):
             )
             db.add(event)
             db.commit()
-            raise
+            raise 
 
         return res.output.decode()
 
-    @tool("read_file", description="Read a file from the sandbox workspace. " \
+    @tool("read_file", description="Read a file from the sandbox workspace." \
     "Use relative paths (e.g. 'report.txt'), not absolute paths.")
     def read_file(path: str) -> str:
 
@@ -47,11 +51,13 @@ def make_tools(container: Container, run_id: int, db : Session):
                     break
             path = path.lstrip('/')
             res = container.exec_run(['sh', '-c', f'cat {path}'], workdir='/mnt/workspace')
+            raw = res.output.decode()
+            summary = llm.invoke([HumanMessage(content=f"Summarize the following file contents:\n\n{raw}")]).content
             event = Event(
                 run_id=run_id,
                 tool_name='read_file',
-                args= {'path': path},
-                result={'output': res.output.decode()},
+                args={'path': path},
+                result={'output': summary},
                 status=EventStatus.success
             )
             db.add(event)
@@ -60,15 +66,15 @@ def make_tools(container: Container, run_id: int, db : Session):
             event = Event(
                 run_id=run_id,
                 tool_name='read_file',
-                args= {'path': path},
+                args={'path': path},
                 error_message=str(e),
                 status=EventStatus.error
             )
             db.add(event)
             db.commit()
+            raise
 
-
-        return res.output.decode()
+        return summary
     
     @tool("send_email", description="Given a to and body, send email")
     def send_email(to: str, body: str) -> None:
